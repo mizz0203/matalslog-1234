@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메탈 슬러그 게임</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            font-family: Arial, sans-serif;
+            touch-action: none; /* 모바일 터치 스크롤 방지 */
+        }
+        #gameContainer {
+            position: relative;
+            /* 캔버스 크기에 맞게 조정될 수 있도록 */
+            width: 800px;
+            height: 400px;
+        }
+        canvas {
+            border: 2px solid #444;
+            background-color: #111;
+            display: block; /* 하단 여백 제거 */
+            width: 100%; /* 컨테이너에 맞게 */
+            height: 100%; /* 컨테이너에 맞게 */
+        }
+        .game-ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 16px;
+            text-shadow: 1px 1px 1px black;
+            z-index: 10; /* 다른 요소 위에 표시 */
+        }
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: red;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px black;
+            display: none; /* 기본 숨김 */
+            z-index: 10;
+        }
+        .instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-size: 14px;
+            text-shadow: 1px 1px 1px black;
+            z-index: 10;
+        }
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20; /* 최상위 */
+        }
+        .start-screen h1 {
+            margin-bottom: 20px;
+            font-size: 36px;
+            text-shadow: 2px 2px 4px black;
+        }
+        .start-screen button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #c00;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        .start-screen button:hover {
+            background-color: #f00;
+        }
+        /* 모바일 컨트롤 */
+        .mobile-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: none; /* 기본 숨김, JS로 제어 */
+            justify-content: space-between;
+            align-items: flex-end; /* 버튼들을 아래쪽에 정렬 */
+            padding: 20px;
+            box-sizing: border-box; /* 패딩 포함 크기 계산 */
+            z-index: 15;
+        }
+        .direction-pad {
+            display: grid; /* 그리드 레이아웃 사용 */
+            grid-template-areas:
+                ". up ."
+                "left . right";
+            gap: 10px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 15px; /* 버튼 사이 간격 */
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            user-select: none;
+            -webkit-user-select: none; /* Safari */
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        .control-btn:active {
+             background-color: rgba(255, 255, 255, 0.6);
+        }
+        #leftBtn { grid-area: left; }
+        #rightBtn { grid-area: right; }
+        #upBtn { grid-area: up; }
+
+        .fire-btn {
+            background-color: rgba(255, 80, 80, 0.5); /* 빨간색 계열 */
+            border-color: rgba(255, 80, 80, 0.7);
+        }
+         .fire-btn:active {
+            background-color: rgba(255, 80, 80, 0.8);
+        }
+        .grenade-btn {
+            background-color: rgba(80, 200, 80, 0.5); /* 녹색 계열 */
+             border-color: rgba(80, 200, 80, 0.7);
+        }
+        .grenade-btn:active {
+             background-color: rgba(80, 200, 80, 0.8);
+        }
+
+        /* 반응형 스타일 */
+        @media (max-width: 800px) {
+            #gameContainer {
+                width: 100%;
+                height: auto; /* 비율 유지를 위해 auto로 설정하거나, JS로 높이 조정 필요 */
+                max-height: 100vh; /* 화면 높이 초과 방지 */
+            }
+             /* 캔버스 비율 유지 (예: 2:1) */
+            canvas {
+                aspect-ratio: 800 / 400;
+            }
+            .control-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+             .mobile-controls {
+                padding: 10px;
+             }
+             .start-screen h1 {
+                 font-size: 28px;
+             }
+             .start-screen button {
+                 padding: 12px 25px;
+                 font-size: 18px;
+             }
+             .game-over {
+                 font-size: 36px;
+             }
+        }
+         @media (max-height: 500px) { /* 세로가 짧은 화면 대응 */
+              .control-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+             .mobile-controls {
+                padding: 5px;
+             }
+         }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="game-ui">
+            <div>체력: <span id="healthDisplay">10000</span>/10000</div>
+            <div>점수: <span id="scoreDisplay">0</span></div>
+            {/* 필요시 추가 */}
+        </div>
+        <div class="game-over" id="gameOver">게임 오버</div>
+        <div class="instructions">
+            방향키: 이동 | Z: 총 발사 | X: 수류탄 발사 | P: 일시정지
+        </div>
+        <div class="start-screen" id="startScreen">
+            <h1>메탈 슬러그 게임</h1>
+            <button id="startButton">게임 시작</button>
+        </div>
+        <div class="mobile-controls" id="mobileControls">
+            <div class="direction-pad">
+                <div class="control-btn" id="upBtn">↑</div>
+                <div class="control-btn" id="leftBtn">←</div>
+                <div class="control-btn" id="rightBtn">→</div>
+            </div>
+            <div class="action-buttons">
+                <div class="control-btn fire-btn" id="fireBtn">Z</div>
+                <div class="control-btn grenade-btn" id="grenadeBtn">X</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 게임 설정
+        const PLAYER_SPEED = 5;
+        const BULLET_SPEED = 10;
+        const GRENADE_SPEED = 7;
+        const ENEMY_SPEED = 2;
+        const ENEMY_SPAWN_RATE = 1000; // 밀리초
+        const GRAVITY = 0.5;
+
+        // 무기 설정
+        const BULLET_DAMAGE = 100;
+        const GRENADE_DAMAGE = 500;
+        const KNIFE_DAMAGE = 40; // 적의 근접 공격 데미지
+        const MAX_HEALTH = 10000;
+
+        // 게임 상태 변수
+        let gameRunning = false;
+        let gamePaused = false;
+        let lastTime = 0;
+        let enemySpawnTimer = 0;
+        let score = 0;
+        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // 모바일 컨트롤 상태
+        let mobileControlState = {
+            left: false,
+            right: false,
+            up: false
+        };
+
+        // 게임 요소들
+        let player = {
+            x: 100,
+            y: 300, // 초기 y 위치 조정 (바닥 기준)
+            width: 40,
+            height: 60,
+            speed: PLAYER_SPEED,
+            health: MAX_HEALTH,
+            // grenades: 5, // 수류탄 개수 필요시 추가
+            isJumping: false,
+            jumpSpeed: 0,
+            direction: 1, // 1: 오른쪽, -1: 왼쪽
+            isAttacking: false, // 총/수류탄 발사 애니메이션용
+            attackTimer: 0 // 애니메이션 지속 시간 타이머
+        };
+
+        let bullets = [];
+        let grenades = [];
+        let enemies = [];
+        let explosions = [];
+
+        // 입력 처리
+        const keys = {};
+
+        document.addEventListener('keydown', function(e) {
+            // 메타 키(Cmd, Ctrl 등)나 Alt 키 조합은 무시 (브라우저 단축키 방지)
+            if (e.metaKey || e.altKey) return;
+
+            keys[e.key] = true;
+
+            // 총 발사 (Z키)
+            if ((e.key === 'z' || e.key === 'Z') && gameRunning && !gamePaused) {
+                 e.preventDefault(); // 기본 동작 방지 (예: 텍스트 입력)
+                fireBullet();
+            }
+
+            // 수류탄 발사 (X키)
+            if ((e.key === 'x' || e.key === 'X') && gameRunning && !gamePaused) {
+                 e.preventDefault();
+                throwGrenade();
+            }
+
+            // 점프 (ArrowUp 또는 Space)
+             if ((e.key === 'ArrowUp' || e.key === ' ') && gameRunning && !gamePaused && !player.isJumping) {
+                 e.preventDefault();
+                 player.isJumping = true;
+                 player.jumpSpeed = -15; // 점프 높이 조절
+             }
+
+            // 일시정지 (P키)
+            if ((e.key === 'p' || e.key === 'P') && gameRunning) {
+                 e.preventDefault();
+                gamePaused = !gamePaused;
+                 // 일시정지 화면 표시/숨김 로직 추가 가능
+            }
+
+            // 좌우 이동 키는 movePlayer 함수에서 처리
+             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                 e.preventDefault(); // 스크롤 등 방지
+             }
+        });
+
+        document.addEventListener('keyup', function(e) {
+            keys[e.key] = false;
+        });
+
+        // 모바일 컨트롤 설정
+        function setupMobileControls() {
+            const mobileControlsElement = document.getElementById('mobileControls'); // 변수명 변경
+            const leftBtn = document.getElementById('leftBtn');
+            const rightBtn = document.getElementById('rightBtn');
+            const upBtn = document.getElementById('upBtn');
+            const fireBtn = document.getElementById('fireBtn');
+            const grenadeBtn = document.getElementById('grenadeBtn');
+
+            // 모바일 기기에서만 컨트롤 표시
+            if (isMobile) {
+                mobileControlsElement.style.display = 'flex'; // 'flex'로 변경
+                 // PC 조작 설명 숨기기
+                 const instructions = document.querySelector('.instructions');
+                 if(instructions) instructions.style.display = 'none';
+            }
+
+            // 방향키 이벤트
+            setupTouchEvents(leftBtn, function(isPressed) {
+                mobileControlState.left = isPressed;
+            });
+
+            setupTouchEvents(rightBtn, function(isPressed) {
+                mobileControlState.right = isPressed;
+            });
+
+            setupTouchEvents(upBtn, function(isPressed) {
+                // Up 버튼은 누르는 순간 점프하도록 처리
+                if (isPressed && gameRunning && !gamePaused && !player.isJumping) {
+                    player.isJumping = true;
+                    player.jumpSpeed = -15;
+                }
+                // mobileControlState.up = isPressed; // 지속적인 상태는 필요 없을 수 있음
+            });
+
+            // 액션 버튼 이벤트
+            setupTouchEvents(fireBtn, function(isPressed) {
+                if (isPressed && gameRunning && !gamePaused) {
+                    fireBullet();
+                }
+            });
+
+            setupTouchEvents(grenadeBtn, function(isPressed) {
+                if (isPressed && gameRunning && !gamePaused) {
+                    throwGrenade();
+                }
+            });
+        }
+
+        // 터치 및 마우스 이벤트 설정 헬퍼 함수
+        function setupTouchEvents(element, callback) {
+            element.addEventListener('touchstart', function(e) {
+                e.preventDefault(); // 스크롤 및 확대/축소 방지
+                callback(true);
+            }, { passive: false }); // passive: false 필수
+
+            element.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                callback(false);
+            }, { passive: false });
+
+            element.addEventListener('touchcancel', function(e) { // 터치 취소 시
+                 e.preventDefault();
+                 callback(false);
+            }, { passive: false });
+
+            // PC 테스트용 마우스 이벤트
+            element.addEventListener('mousedown', function(e) {
+                 if (!isMobile) callback(true); // 모바일이 아닐 때만
+            });
+
+            element.addEventListener('mouseup', function(e) {
+                 if (!isMobile) callback(false);
+            });
+             element.addEventListener('mouseleave', function(e) { // 버튼 밖으로 마우스 나갈 때
+                 if (!isMobile) callback(false);
+            });
+        }
+
+        // 캔버스 및 컨테이너 크기 조정 (반응형 대응)
+        function resizeCanvas() {
+            const gameContainer = document.getElementById('gameContainer');
+            const canvasElement = document.getElementById('gameCanvas'); // 변수명 변경
+
+            // 컨테이너의 현재 너비를 가져옴
+            const containerWidth = gameContainer.clientWidth;
+             // 원하는 가로세로 비율 (800:400 => 2:1)
+             const aspectRatio = 800 / 400;
+             const containerHeight = containerWidth / aspectRatio;
+
+            // 캔버스의 내부 해상도는 유지 (800x400)
+            // 캔버스의 CSS 크기를 컨테이너에 맞게 조정
+             canvasElement.style.width = containerWidth + 'px';
+             canvasElement.style.height = containerHeight + 'px';
+
+             // 게임 컨테이너의 높이도 설정 (필요한 경우)
+             gameContainer.style.height = containerHeight + 'px';
+        }
+
+        // 창 크기 변경 및 초기 로드 시 리사이즈 실행
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => {
+            resizeCanvas(); // 초기 로드 시 크기 조정
+            setupMobileControls(); // 모바일 컨트롤 설정
+             startScreen.style.display = 'flex'; // 시작 화면 표시
+        });
+
+
+        // 게임 캔버스 설정
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI 요소 가져오기
+        const startScreen = document.getElementById('startScreen');
+        const startButton = document.getElementById('startButton');
+        const gameOverDisplay = document.getElementById('gameOver');
+        const healthDisplay = document.getElementById('healthDisplay'); // 변수 추가
+        const scoreDisplay = document.getElementById('scoreDisplay'); // 변수 추가
+        // const grenadeCountDisplay = document.getElementById('grenadeCountDisplay'); // 필요시 추가
+
+        startButton.addEventListener('click', function() {
+            startGame();
+        });
+
+        function startGame() {
+            // 게임 상태 초기화
+            gameRunning = true;
+            gamePaused = false;
+            score = 0;
+            lastTime = 0; // lastTime 초기화
+            enemySpawnTimer = 0; // 타이머 초기화
+
+            // 플레이어 초기화
+            player = {
+                x: 100,
+                y: 300,
+                width: 40,
+                height: 60,
+                speed: PLAYER_SPEED,
+                health: MAX_HEALTH,
+                // grenades: 5, // 수류탄 개수 초기화
+                isJumping: false,
+                jumpSpeed: 0,
+                direction: 1,
+                isAttacking: false,
+                attackTimer: 0
+            };
+
+            // 게임 요소 초기화
+            bullets = [];
+            grenades = [];
+            enemies = [];
+            explosions = [];
+
+            // UI 업데이트
+            updateUI();
+
+            // 시작 화면 숨기기, 게임 오버 숨기기
+            startScreen.style.display = 'none';
+            gameOverDisplay.style.display = 'none';
+
+            // 게임 루프 시작
+             if (gameRunning) { // 이미 실행 중이면 중복 실행 방지
+                 requestAnimationFrame(gameLoop);
+             }
+        }
+
+        function gameLoop(timestamp) {
+            if (!gameRunning) return; // 게임이 멈췄으면 루프 종료
+
+            // 시간 계산 (델타 타임)
+            if (!lastTime) lastTime = timestamp;
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            // 델타 타임이 너무 크면 (예: 탭 전환 후 복귀) 조정
+             const maxDeltaTime = 100; // 최대 100ms (0.1초)
+             const dt = Math.min(deltaTime, maxDeltaTime);
+
+
+            // 일시정지 상태가 아닐 때만 게임 업데이트
+            if (!gamePaused) {
+                update(dt); // 조정된 deltaTime 사용
+                enemySpawnTimer += dt;
+
+                // 적 생성
+                if (enemySpawnTimer >= ENEMY_SPAWN_RATE) {
+                    spawnEnemy();
+                    enemySpawnTimer = 0; // 타이머 리셋
+                }
+            } else {
+                 // 일시정지 시 화면에 "Paused" 표시 등 추가 가능
+                 ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                 ctx.fillRect(0, 0, canvas.width, canvas.height);
+                 ctx.fillStyle = 'white';
+                 ctx.font = '30px Arial';
+                 ctx.textAlign = 'center';
+                 ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+            }
+
+            // 그리기 (일시정지 여부와 관계없이 항상 그림)
+            render();
+
+            // 다음 프레임 요청
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(deltaTime) { // deltaTime을 인자로 받음
+            // 플레이어 이동
+            movePlayer();
+
+            // 총알 업데이트
+            updateBullets();
+
+            // 수류탄 업데이트
+            updateGrenades(deltaTime); // deltaTime 전달
+
+            // 적 업데이트
+            updateEnemies(deltaTime); // deltaTime 전달
+
+            // 폭발 업데이트
+            updateExplosions(deltaTime); // deltaTime 전달
+
+             // 플레이어 공격 애니메이션 타이머 업데이트
+             if (player.isAttacking) {
+                 player.attackTimer -= deltaTime;
+                 if (player.attackTimer <= 0) {
+                     player.isAttacking = false;
+                 }
+             }
+
+            // 충돌 감지
+            detectCollisions();
+
+            // 게임 오버 체크
+            if (player.health <= 0) {
+                gameOver();
+            }
+        }
+
+        function movePlayer() {
+            // 키보드 또는 모바일 컨트롤러 입력 기반 이동
+            let moveLeft = keys['ArrowLeft'] || mobileControlState.left;
+            let moveRight = keys['ArrowRight'] || mobileControlState.right;
+
+            if (moveLeft) {
+                player.x -= player.speed;
+                player.direction = -1;
+            }
+            if (moveRight) {
+                player.x += player.speed;
+                player.direction = 1;
+            }
+
+            // 점프 처리는 keydown/touchstart에서 함
+
+            // 점프 물리 적용 (중력)
+            if (player.isJumping) {
+                player.y += player.jumpSpeed;
+                player.jumpSpeed += GRAVITY;
+
+                // 바닥 충돌 체크 (바닥: y=350 - player.height = 290)
+                const groundY = canvas.height - 50 - player.height; // 바닥 높이 계산
+                if (player.y >= groundY) {
+                    player.y = groundY;
+                    player.isJumping = false;
+                    player.jumpSpeed = 0; // 착지 시 속도 초기화
+                }
+            } else {
+                 // 점프 중이 아닐 때 바닥 위에 있는지 확인 (혹시 모를 버그 방지)
+                 const groundY = canvas.height - 50 - player.height;
+                 if (player.y < groundY) {
+                     // 공중에 떠 있다면 중력 적용 (점프하지 않았지만 떨어지는 경우)
+                      player.jumpSpeed += GRAVITY;
+                      player.y += player.jumpSpeed;
+                       if (player.y >= groundY) {
+                           player.y = groundY;
+                           player.jumpSpeed = 0;
+                       }
+                 } else if (player.y > groundY) {
+                     // 바닥 아래로 갔다면 위치 보정
+                     player.y = groundY;
+                 }
+            }
+
+            // 화면 경계 체크
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+        }
+
+        function fireBullet() {
+            // 짧은 시간 내 연속 발사 방지 또는 쿨다운 필요시 추가
+            if (player.isAttacking && player.attackTimer > 0) return; // 공격 애니메이션 중이면 발사 불가 (선택사항)
+
+            player.isAttacking = true;
+            player.attackTimer = 150; // 총 발사 애니메이션 시간 (짧게)
+
+            const bullet = {
+                x: player.direction > 0 ? player.x + player.width : player.x, // 총구 위치
+                y: player.y + 25, // 총 높이 근처
+                width: 10,
+                height: 5,
+                speed: BULLET_SPEED * player.direction,
+                damage: BULLET_DAMAGE
+            };
+
+            bullets.push(bullet);
+        }
+
+        function throwGrenade() {
+            // if (player.grenades <= 0) return; // 수류탄 개수 체크
+            if (player.isAttacking && player.attackTimer > 0) return;
+
+            player.isAttacking = true;
+            player.attackTimer = 300; // 수류탄 던지는 애니메이션 시간 (조금 길게)
+            // player.grenades--; // 수류탄 개수 감소
+            // updateUI(); // UI 업데이트
+
+            const grenade = {
+                x: player.x + player.width / 2,
+                y: player.y + player.height / 2,
+                width: 15, // 히트박스 크기
+                height: 15,
+                speedX: GRENADE_SPEED * player.direction,
+                speedY: -10, // 초기 상향 속도
+                damage: GRENADE_DAMAGE,
+                detonateTimer: 1500 // 1.5초 후 폭발
+            };
+
+            grenades.push(grenade);
+        }
+
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                bullets[i].x += bullets[i].speed;
+
+                // 화면 밖으로 나가면 제거
+                if (bullets[i].x < -bullets[i].width || bullets[i].x > canvas.width) {
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+
+        function updateGrenades(deltaTime) {
+            for (let i = grenades.length - 1; i >= 0; i--) {
+                const grenade = grenades[i];
+                // 수류탄 물리 적용
+                grenade.x += grenade.speedX;
+                grenade.y += grenade.speedY;
+                grenade.speedY += GRAVITY; // 중력 적용
+
+                // 바닥 충돌 (바닥: y=350)
+                const groundY = canvas.height - 50;
+                if (grenade.y + grenade.height > groundY) {
+                    grenade.y = groundY - grenade.height;
+                    grenade.speedY *= -0.5; // 탄성 (튕김 감소)
+                    grenade.speedX *= 0.7; // 마찰 (좌우 속도 감소)
+                     // 속도가 매우 느려지면 멈춤
+                     if (Math.abs(grenade.speedY) < 1) grenade.speedY = 0;
+                     if (Math.abs(grenade.speedX) < 0.5) grenade.speedX = 0;
+                }
+
+                // 화면 경계 충돌 (좌우 벽) - 필요시 추가
+                 if (grenade.x < 0 || grenade.x + grenade.width > canvas.width) {
+                     grenade.speedX *= -0.7; // 벽에 튕김
+                     if (grenade.x < 0) grenade.x = 0;
+                     if (grenade.x + grenade.width > canvas.width) grenade.x = canvas.width - grenade.width;
+                 }
+
+
+                // 폭발 타이머 감소
+                grenade.detonateTimer -= deltaTime;
+
+                // 폭발
+                if (grenade.detonateTimer <= 0) {
+                    explodeGrenade(grenade);
+                    grenades.splice(i, 1);
+                }
+            }
+        }
+
+        function explodeGrenade(grenade) {
+            const explosionRadius = 80; // 폭발 범위 반지름
+            // 폭발 효과 생성 (render에서 그림)
+            const explosion = {
+                x: grenade.x + grenade.width / 2, // 폭발 중심 x
+                y: grenade.y + grenade.height / 2, // 폭발 중심 y
+                radius: explosionRadius,
+                timer: 300, // 폭발 이펙트 지속 시간
+                damage: grenade.damage
+            };
+
+            explosions.push(explosion);
+
+            // 폭발 범위 내의 적에게 데미지 적용
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const enemyCenterX = enemy.x + enemy.width / 2;
+                const enemyCenterY = enemy.y + enemy.height / 2;
+                const dx = enemyCenterX - explosion.x;
+                const dy = enemyCenterY - explosion.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < explosion.radius + enemy.width / 2) { // 원형 충돌 감지 (대략적)
+                    enemy.health -= explosion.damage;
+                    if (enemy.health <= 0) {
+                        enemies.splice(i, 1);
+                        score += 100;
+                        updateUI();
+                    }
+                }
+            }
+
+            // 플레이어도 폭발 범위 내에 있으면 데미지
+            const playerCenterX = player.x + player.width / 2;
+            const playerCenterY = player.y + player.height / 2;
+            const dxPlayer = playerCenterX - explosion.x;
+            const dyPlayer = playerCenterY - explosion.y;
+            const distancePlayer = Math.sqrt(dxPlayer * dxPlayer + dyPlayer * dyPlayer);
+
+            if (distancePlayer < explosion.radius + player.width / 2) {
+                player.health -= explosion.damage / 5; // 자기 폭발 데미지 감소
+                updateUI();
+            }
+        }
+
+        function updateExplosions(deltaTime) {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                explosions[i].timer -= deltaTime;
+
+                if (explosions[i].timer <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+        }
+
+        function spawnEnemy() {
+             // 적 생성 위치 (화면 양쪽 끝에서 랜덤하게 또는 번갈아)
+             const spawnSide = Math.random() < 0.5 ? 'left' : 'right';
+             const spawnX = spawnSide === 'left' ? -40 : canvas.width; // 화면 바로 밖
+             const groundY = canvas.height - 50; // 바닥 높이
+
+            const enemy = {
+                x: spawnX,
+                y: groundY - 60, // 바닥 위에 생성 (높이 60 기준)
+                width: 40,
+                height: 60,
+                speed: ENEMY_SPEED + Math.random() * 1, // 약간의 속도 변화
+                health: 200 + score * 0.01, // 점수에 따라 체력 증가 (선택적 난이도 조절)
+                attackCooldown: 1500 + Math.random() * 500, // 공격 쿨다운 (랜덤성 부여)
+                currentAttackCooldown: 0, // 현재 쿨다운 타이머
+                isAttacking: false,
+                attackTimer: 0, // 공격 애니메이션 타이머
+                direction: spawnSide === 'left' ? 1 : -1 // 생성 위치에 따른 초기 방향
+            };
+
+            enemies.push(enemy);
+        }
+
+        function updateEnemies(deltaTime) {
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+
+                // 플레이어 방향으로 이동 목표 설정
+                const targetX = player.x;
+                const dx = targetX - enemy.x;
+                 enemy.direction = Math.sign(dx); // 플레이어 방향으로 설정
+
+                 // 플레이어와의 거리 계산
+                 const distanceToPlayer = Math.abs(dx);
+                 const attackRange = 50; // 적의 공격 사거리
+
+                 // 이동: 플레이어와 일정 거리 유지하며 접근/후퇴 (선택적)
+                 // if (distanceToPlayer > attackRange + 10) { // 너무 멀면 접근
+                 //     enemy.x += enemy.direction * enemy.speed;
+                 // } else if (distanceToPlayer < attackRange - 10) { // 너무 가까우면 약간 후퇴
+                 //      enemy.x -= enemy.direction * enemy.speed * 0.5;
+                 // }
+
+                 // 단순 접근 방식
+                 if (distanceToPlayer > attackRange) {
+                    enemy.x += enemy.direction * enemy.speed;
+                 }
+
+
+                // 공격 쿨다운 감소
+                if (enemy.currentAttackCooldown > 0) {
+                    enemy.currentAttackCooldown -= deltaTime;
+                }
+
+                // 공격 애니메이션 업데이트
+                if (enemy.isAttacking) {
+                    enemy.attackTimer -= deltaTime;
+                    if (enemy.attackTimer <= 0) {
+                        enemy.isAttacking = false;
+                    }
+                }
+
+                // 플레이어가 공격 범위 내에 있고, 쿨다운이 완료되었으면 공격 시도
+                if (distanceToPlayer <= attackRange && enemy.currentAttackCooldown <= 0 && !enemy.isAttacking) {
+                    enemyAttack(enemy);
+                }
+
+                 // 적도 바닥에 있도록 y 좌표 고정 (점프 기능 없으므로)
+                 const groundY = canvas.height - 50 - enemy.height;
+                 enemy.y = groundY;
+            }
+        }
+
+        function enemyAttack(enemy) {
+            enemy.isAttacking = true;
+            enemy.attackTimer = 500; // 공격 애니메이션 시간
+            enemy.currentAttackCooldown = enemy.attackCooldown; // 쿨다운 초기화
+
+            // 실제 데미지 적용 시점 (예: 애니메이션 중간)
+             setTimeout(() => {
+                 // 공격 시점에 플레이어가 여전히 범위 내에 있는지 다시 확인
+                 const playerCenterX = player.x + player.width / 2;
+                 const enemyCenterX = enemy.x + enemy.width / 2;
+                 const distance = Math.abs(playerCenterX - enemyCenterX);
+                 const attackRange = 60; // 칼 공격 범위
+
+                 if (distance < attackRange && gameRunning && !gamePaused) { // 게임 진행 중일 때만
+                     player.health -= KNIFE_DAMAGE;
+                     updateUI();
+                      // 피격 이펙트 추가 가능 (예: 화면 흔들림, 플레이어 깜빡임)
+                 }
+             }, 200); // 200ms 후 데미지 판정
+        }
+
+        function detectCollisions() {
+            // 총알과 적 충돌 체크
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
+                if (!bullet) continue; // 혹시 모를 에러 방지
+
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    const enemy = enemies[j];
+                    if (!enemy) continue;
+
+                    if (isColliding(bullet, enemy)) {
+                        // 적에게 데미지 주기
+                        enemy.health -= bullet.damage;
+
+                        // 총알 제거
+                        bullets.splice(i, 1);
+
+                        // 적 체력이 0 이하면 제거
+                        if (enemy.health <= 0) {
+                            enemies.splice(j, 1);
+                            score += 100;
+                            updateUI();
+                        }
+
+                        // 총알은 하나의 적만 맞추므로 break
+                        break;
+                    }
+                }
+            }
+
+            // 플레이어와 적 충돌 체크 (몸통 박치기 데미지 - 선택 사항)
+             /*
+             for (let i = enemies.length - 1; i >= 0; i--) {
+                 const enemy = enemies[i];
+                 if (isColliding(player, enemy)) {
+                     // 데미지 처리 (예: 약간의 데미지)
+                     player.health -= 5; // 예시 데미지
+                     updateUI();
+                     // 넉백 효과 등 추가 가능
+                 }
+             }
+             */
+        }
+
+        // 사각형 충돌 감지 함수
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function render() {
+            // 캔버스 지우기
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 배경 그리기
+            drawBackground();
+
+             // 바닥 그리기 (플레이어/적보다 먼저 그려야 뒤에 가려짐)
+            drawGround();
+
+            // 적 그리기
+            drawEnemies();
+
+            // 총알 그리기
+            drawBullets();
+
+            // 수류탄 그리기
+            drawGrenades();
+
+            // 폭발 그리기
+            drawExplosions();
+
+            // 플레이어 그리기 (가장 위에)
+            drawPlayer();
+
+             // UI는 HTML 요소로 표시되므로 여기서 그릴 필요 없음
+             // 단, 일시정지 메시지는 canvas에 직접 그림 (gameLoop에서 처리)
+        }
+
+        function drawBackground() {
+            // 간단한 단색 배경
+            ctx.fillStyle = '#222244'; // 어두운 파란색 계열
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 추가적인 배경 요소 (예: 별, 구름 등) 그리기 가능
+             ctx.fillStyle = 'white';
+             for(let i=0; i<50; i++) { // 간단한 별 효과
+                 ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height * 0.8, 2, 2);
+             }
+        }
+
+        function drawGround() {
+            ctx.fillStyle = '#333'; // 어두운 회색
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50); // 바닥 높이 50
+        }
+
+        function drawPlayer() {
+            ctx.save(); // 현재 상태 저장
+
+            // 플레이어 몸체
+            ctx.fillStyle = '#0088ff'; // 파란색
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // 플레이어 머리 (몸체 위에)
+            ctx.fillStyle = '#ffddaa'; // 살구색
+            ctx.fillRect(player.x + 10, player.y - 15, 20, 20); // 몸체 기준 위로
+
+            // 총 그리기
+            ctx.fillStyle = '#444'; // 총 색깔
+            const gunWidth = 20;
+            const gunHeight = 10;
+            const gunY = player.y + 25; // 총의 y 위치
+
+            if (player.direction > 0) { // 오른쪽 볼 때
+                ctx.fillRect(player.x + player.width - 5, gunY, gunWidth, gunHeight);
+            } else { // 왼쪽 볼 때
+                ctx.fillRect(player.x - 15, gunY, gunWidth, gunHeight);
+            }
+
+            // 공격 이펙트 (총구 화염)
+            if (player.isAttacking && player.attackTimer > 100) { // 총 발사 시점에만 (수류탄 제외)
+                 ctx.fillStyle = 'yellow';
+                 const muzzleFlashSize = 8;
+                 let muzzleX;
+                 if (player.direction > 0) {
+                     muzzleX = player.x + player.width + gunWidth - 10; // 오른쪽 총구 끝
+                 } else {
+                      muzzleX = player.x - 15 - muzzleFlashSize + 2; // 왼쪽 총구 끝
+                 }
+                 ctx.beginPath();
+                 ctx.arc(muzzleX, gunY + gunHeight / 2, muzzleFlashSize, 0, Math.PI * 2);
+                 ctx.fill();
+            }
+
+            ctx.restore(); // 저장된 상태 복원
+        }
+
+        function drawEnemies() {
+            for (const enemy of enemies) {
+                ctx.save(); // 각 적마다 상태 저장/복원
+
+                 // 적 몸체
+                 ctx.fillStyle = '#dd4422'; // 붉은색 계열
+                 ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+
+                 // 적 머리
+                 ctx.fillStyle = '#ccaa88'; // 약간 어두운 살구색
+                 ctx.fillRect(enemy.x + 10, enemy.y - 15, 20, 20);
+
+                 // 칼 그리기 (공격 모션)
+                 ctx.fillStyle = '#aaa'; // 칼 색깔 (회색)
+                 const knifeWidth = enemy.isAttacking ? 30 : 15; // 공격 시 길어짐
+                 const knifeHeight = 5;
+                 const knifeY = enemy.y + 30; // 칼의 y 위치
+
+                 if (enemy.direction > 0) { // 오른쪽 볼 때
+                     ctx.fillRect(enemy.x + enemy.width - 8, knifeY, knifeWidth, knifeHeight);
+                 } else { // 왼쪽 볼 때
+                     ctx.fillRect(enemy.x - (enemy.isAttacking ? 22 : 7), knifeY, knifeWidth, knifeHeight);
+                 }
+
+
+                 // 체력바 그리기
+                 const healthPercent = Math.max(0, enemy.health) / (200 + score * 0.01); // 0 미만 방지, 최대 체력 기준
+                 const healthBarWidth = enemy.width;
+                 const healthBarHeight = 5;
+                 const healthBarY = enemy.y - 25; // 머리 위보다 조금 더 위
+
+                 // 배경 바
+                 ctx.fillStyle = 'rgba(50, 50, 50, 0.7)';
+                 ctx.fillRect(enemy.x, healthBarY, healthBarWidth, healthBarHeight);
+                 // 현재 체력 바
+                 ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : (healthPercent > 0.2 ? '#ffff00' : '#ff0000'); // 체력 따라 색 변경
+                 ctx.fillRect(enemy.x, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
+
+                ctx.restore(); // 상태 복원
+            }
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = '#ffff00'; // 노란색 총알
+            for (const bullet of bullets) {
+                 // 총알 모양 개선 (약간 길게)
+                 ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            }
+        }
+
+        function drawGrenades() {
+            ctx.fillStyle = '#008800'; // 진한 녹색
+            for (const grenade of grenades) {
+                ctx.beginPath();
+                ctx.arc(grenade.x + grenade.width / 2, grenade.y + grenade.height / 2, 8, 0, Math.PI * 2); // 중앙 기준 원
+                ctx.fill();
+                 // 심지 등 디테일 추가 가능
+                 ctx.fillStyle = '#555';
+                 ctx.fillRect(grenade.x + grenade.width/2 - 2, grenade.y - 3, 4, 4);
+            }
+        }
+
+        function drawExplosions() {
+            for (const explosion of explosions) {
+                const progress = 1 - (explosion.timer / 300); // 0 -> 1
+                 const currentRadius = explosion.radius * progress;
+                 const alpha = 1 - progress; // 1 -> 0
+
+                 // 여러 색상의 원을 겹쳐서 표현
+                 ctx.beginPath();
+                 ctx.arc(explosion.x, explosion.y, currentRadius, 0, Math.PI * 2);
+                 ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.8})`; // 주황색
+                 ctx.fill();
+
+                 ctx.beginPath();
+                 ctx.arc(explosion.x, explosion.y, currentRadius * 0.7, 0, Math.PI * 2);
+                 ctx.fillStyle = `rgba(255, 200, 0, ${alpha})`; // 노란색
+                 ctx.fill();
+
+                 ctx.beginPath();
+                 ctx.arc(explosion.x, explosion.y, currentRadius * 0.4, 0, Math.PI * 2);
+                 ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`; // 흰색 중심부
+                 ctx.fill();
+            }
+        }
+
+        function updateUI() {
+            // HTML 요소 내용 업데이트
+            healthDisplay.textContent = Math.max(0, Math.floor(player.health));
+            scoreDisplay.textContent = score;
+            // grenadeCountDisplay.textContent = player.grenades; // 필요시
+        }
+
+        function gameOver() {
+            gameRunning = false; // 게임 루프 중단
+            gameOverDisplay.style.display = 'block'; // 게임 오버 메시지 표시
+
+            // 3초 후 시작 화면으로 자동 전환
+            setTimeout(() => {
+                // 게임 오버 메시지 숨기고 시작 화면 표시
+                gameOverDisplay.style.display = 'none';
+                startScreen.style.display = 'flex';
+            }, 3000);
+        }
+
+    </script>
+</body>
